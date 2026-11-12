@@ -1,0 +1,85 @@
+@Inbook{bdds,
+author="Bryant, Randal E.",
+editor="Clarke, Edmund M.
+and Henzinger, Thomas A.
+and Veith, Helmut
+and Bloem, Roderick",
+title="Binary Decision Diagrams",
+bookTitle="Handbook of Model Checking",
+year="2018",
+publisher="Springer International Publishing",
+address="Cham",
+pages="191--217",
+abstract="Binary decision diagrams provide a data structure for representing and manipulating Boolean functions in symbolic form. They have been especially effective as the algorithmic basis for symbolic model checkers. A binary decision diagram represents a Boolean function as a directed acyclic graph, corresponding to a compressed form of decision tree. Most commonly, an ordering constraint is imposed among the occurrences of decision variables in the graph, yielding ordered binary decision diagrams (OBDD). Representing all functions as OBDDs with a common variable ordering has the advantages that (1) there is a unique, reduced representation of any function, (2) there is a simple algorithm to reduce any OBDD to the unique form for that function, and (3) there is an associated set of algorithms to implement a wide variety of operations on Boolean functions represented as OBDDs. Recent work in this area has focused on generalizations to represent larger classes of functions, as well as on scaling implementations to handle larger and more complex problems.",
+isbn="978-3-319-10575-8",
+doi="10.1007/978-3-319-10575-8_7",
+url="https://doi.org/10.1007/978-3-319-10575-8_7"
+}
+
+@ARTICLE{bdds-bryant,
+  author={Bryant},
+  journal={IEEE Transactions on Computers}, 
+  title={Graph-Based Algorithms for Boolean Function Manipulation}, 
+  year={1986},
+  volume={C-35},
+  number={8},
+  pages={677-691},
+  keywords={Boolean functions;Testing;Logic design;Indexes;Computers;Binary decision diagrams;Time complexity;Computer science;Surveys;Polynomials;Boolean functions;binary decision diagrams;logic design verification;symbolic manipulation},
+  doi={10.1109/TC.1986.1676819}
+  }
+
+@INPROCEEDINGS{bfs-bdd,
+  author={Ochi, H. and Yasuoka, K. and Yajima, S.},
+  booktitle={Proceedings of 1993 International Conference on Computer Aided Design (ICCAD)}, 
+  title={Breadth-first manipulation of very large binary-decision diagrams}, 
+  year={1993},
+  volume={},
+  number={},
+  pages={48-55},
+  keywords={Boolean functions;Workstations;Data structures;Binary decision diagrams;Compaction;Circuit faults;Sun;Logic testing;Hard disks;Data processing},
+  doi={10.1109/ICCAD.1993.580030}}
+
+
+@InProceedings{oxidd,
+author="Husung, Nils
+and Dubslaff, Clemens
+and Hermanns, Holger
+and K{\"o}hl, Maximilian A.",
+editor="Finkbeiner, Bernd
+and Kov{\'a}cs, Laura",
+title="OxiDD",
+booktitle="Tools and Algorithms for the Construction and Analysis of Systems",
+year="2024",
+publisher="Springer Nature Switzerland",
+address="Cham",
+pages="255--275",
+abstract="Decision diagrams (DDs) are an important data structure in computer science with applications ranging from circuit design and verification to machine learning. Most prominently, binary DDs are commonly used to succinctly represent Boolean functions. Due to the practical importance of DDs, there is an ongoing quest for high-performance software libraries supporting the construction and manipulation of DDs. With OxiDD, we present a new framework for DDs that focuses on safety, concurrency, and modularity. Following a highly modular design we implement OxiDD in Rust, which facilitates the integration of various kinds of DDs such as MTBDDs, ZBDDs, and TDDs, all within safe code also in a concurrent setting. Already in its initial release, OxiDD does not compromise performance, which we show to be on par with or even better than established highly optimized DD libraries.",
+isbn="978-3-031-57256-2"
+}
+
+@Article{sylvan,
+author={van Dijk, Tom
+and van de Pol, Jaco},
+title={Sylvan: multi-core framework for decision diagrams},
+journal={International Journal on Software Tools for Technology Transfer},
+year={2017},
+month={11},
+day={01},
+volume={19},
+number={6},
+pages={675-696},
+abstract={Decision diagrams, such as binary decision diagrams, multi-terminal binary decision diagrams and multi-valued decision diagrams, play an important role in various fields. They are especially useful to represent the characteristic function of sets of states and transitions in symbolic model checking. Most implementations of decision diagrams do not parallelize the decision diagram operations. As performance gains in the current era now mostly come from parallel processing, an ongoing challenge is to develop datastructures and algorithms for modern multi-core architectures. The decision diagram package Sylvan provides a contribution by implementing parallelized decision diagram operations and thus allowing sequential algorithms that use decision diagrams to exploit the power of multi-core machines. This paper discusses the design and implementation of Sylvan, especially an improvement to the lock-free unique table that uses bit arrays, the concurrent operation cache and the implementation of parallel garbage collection. We extend Sylvan with multi-terminal binary decision diagrams for integers, real numbers and rational numbers. This extension also allows for custom MTBDD leaves and operations and we provide an example implementation of GMP rational numbers. Furthermore, we show how the provided framework can be integrated in existing tools to provide out-of-the-box parallel BDD algorithms, as well as support for the parallelization of higher-level algorithms. As a case study, we parallelize on-the-fly symbolic reachability in the model checking toolset LTSmin. We experimentally demonstrate that the parallelization of symbolic model checking for explicit-state modeling languages, as supported by LTSmin, scales well. We also show that improvements in the design of the unique table result in faster execution of on-the-fly symbolic reachability.},
+issn={1433-2787},
+doi={10.1007/s10009-016-0433-2},
+url={https://doi.org/10.1007/s10009-016-0433-2}
+}
+
+@MastersThesis{ruddy,
+AUTHOR = "Urban, Lukáš",
+TITLE = "Ruddy: A performance-optimized BDD library in Rust [online]",
+YEAR = 2025,
+TYPE = "Master's thesis",
+SCHOOL = "Masaryk University, Faculty of Informatics, Brno",
+NOTE = "SUPERVISOR : Samuel Pastva",
+URL = "https://is.muni.cz/th/danz1/",
+}

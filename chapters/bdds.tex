@@ -52,14 +52,14 @@ three interesting properties:
 
 While the BDD is correct, the graph is hard to read. Furthermore, these properties create implementation challenges
 and increase both time and space complexity for the operations performed on this data structure. To address these three
-issues let's introduce some restrictions to a BDD.
+issues, let's introduce some restrictions to a BDD.
 
 
 \section{Types of BDDs}
 \label{chap:bdd:types}
 
-The above mentioned points lay out a foundation for this section. An \textit{Ordered BDD} in subsection
-\ref{chap:bdd:types:obdd} is a solution to point \ref{item:ordering}. Points \ref{item:duplicate} and \ref{item:redundancy}
+The points mentioned above lay the foundation for this section. An \textit{Ordered BDD} in subsection
+\ref{chap:bdd:types:obdd} is a solution to point \ref{item:ordering}. Points \ref{item:redundancy} and \ref{item:duplicate}
 are addressed by a \textit{Reduced Ordered BDD} described in subsection \ref{chap:bdd:types:robdd}.
 
 
@@ -67,10 +67,9 @@ are addressed by a \textit{Reduced Ordered BDD} described in subsection \ref{cha
 \label{chap:bdd:types:obdd}
 
 The point \ref{item:ordering} outlines variables scattered in a seemingly random order. This makes the layer-by-layer
-Breadth-first processing more challenging.
-An OBDD enforces a fixed variable ordering restriction. Let's assume a total ordering of variables
-$x_n < x_n+1 < \ldots < x_{n+k}$ where the variable of terminal nodes in this ordering is assumed to be $\infty$,
-so that $\infty > x_{n+k}$ \cite{ruddy}. A fixed variable ordering guarantees that traversing the BDD encounters the
+Breadth-first processing more challenging. An OBDD enforces a fixed variable ordering restriction. Let's assume a total
+ordering of variables $x_n < x_n+1 < \ldots < x_{n+k}$ where the variable of terminal nodes in this ordering is assumed to be
+$\infty$, so that $\infty > x_{n+k}$ \cite{ruddy}. A fixed variable ordering guarantees that traversing the BDD encounters the
 variables in a certain order. This new property allows the graph to be structured level-by-level with a level per each
 variable. This enables level-wise memory management and breadth-first manipulation algorithms \cite{bfs-bdd, oxidd}.
 
@@ -177,23 +176,6 @@ If neither or only one of the current nodes is terminal, the task cache is check
 check prevents repeated computation of results that were already processed. A task cache is a commonly used optimization that
 reduces the complexity class of many BDD operations from exponential time to polynomial time \cite{sylvan}.
 
-For node pairs that have not been encountered before (or whose result was replaced due to use of a lossy cache), the algorithm
-chooses a path to progress. Line \ref{alg:apply:min-var} determines which BDD to expand further, for only the BDD with a
-lower variable is progressed (assuming the standard variable ordering). After the low and high node pairs of both BDDs are
-assigned, the $apply$ function is called recursively for both successors (lines \ref{alg:apply:apply-l} and
-\ref{alg:apply:apply-h}).
-
-Once both the low and high successors are known, the new resulting node can be created. To keep the resulting BDD still
-reduced, redundant and duplicate nodes need to be eliminated. The $if$ statement on line $\ref{alg:apply:redundancy-check}$
-enforces the redundancy rule. The function $ensure\_node$ called on line \ref{alg:apply:ensure-node} serves two purposes:
-\begin{itemize}
-    \item Create a new node for the given variable $v$, low successor $l$ and high successor $h$
-    \item Check for duplicities and create this node if and only if it is unique to the BDD. Return an existing node otherwise
-\end{itemize}
-
-The final steps of the algorithm are to store the result in the task cache and return the result node. Calling $apply$ with
-two root nodes and an operation yields a root node of the calculated BDD.
-
 \begin{algorithm}
     \caption{Apply}\label{alg:apply}
     \begin{algorithmic}[1]
@@ -209,7 +191,7 @@ two root nodes and an operation yields a root node of the calculated BDD.
             \If{$cached\_res \neq null$} \label{alg:apply:cache-get}
                 \State \Return $cached\_res$
             \EndIf
-            \State $v \gets min(var(node\_a), var(node\_b))$ \label{alg:apply:min-var}
+            \State $v \gets min(var(node\_a), var(node\_b))$ \label{alg:apply:min-var-start}
             \If{$var(node\_a) = v$}
                 \State $(low\_a, high\_a) \gets (low(node\_a), high(node\_a))$
             \Else
@@ -219,7 +201,7 @@ two root nodes and an operation yields a root node of the calculated BDD.
                 \State $(low\_b, high\_b) \gets (low(node\_b), high(node\_b))$
             \Else
                 \State $(low\_b, high\_b) \gets (node\_b, node\_b)$
-            \EndIf
+            \EndIf \label{alg:apply:min-var-end}
             \State $l \gets apply(low\_a, low\_b)$ \label{alg:apply:apply-l}
             \State $h \gets apply(high\_a, high\_b)$ \label{alg:apply:apply-h}
             \If{$l \neq h$}A \label{alg:apply:redundancy-check}
@@ -233,16 +215,55 @@ two root nodes and an operation yields a root node of the calculated BDD.
     \end{algorithmic}
 \end{algorithm}
 
+For node pairs that have not been encountered before (or whose result was replaced due to use of a lossy cache), the algorithm
+chooses a path to progress. Line \ref{alg:apply:min-var-start} determines which BDD to expand further, for only the BDD with a
+lower variable is progressed (assuming the standard variable ordering). After the low and high node pairs of both BDDs are
+assigned, the $apply$ function is called recursively for both successors (lines \ref{alg:apply:apply-l} and
+\ref{alg:apply:apply-h}).
+
+Once both the low and high successors are known, the new resulting node can be created. To keep the resulting BDD still
+reduced, redundant and duplicate nodes need to be eliminated. The $if$ statement on line $\ref{alg:apply:redundancy-check}$
+enforces the redundancy rule. The function $ensure\_node$ called on line \ref{alg:apply:ensure-node} serves two purposes:
+\begin{itemize}
+    \item Create a new node for the given variable $v$, low successor $l$ and high successor $h$
+    \item Check for duplicities and create this node if and only if it is unique to the BDD. Return an existing node otherwise
+\end{itemize}
+
+The final steps of the algorithm are to store the result in the task cache and return the result node. Calling $apply$ with
+two root nodes and an operation yields a root node of the calculated BDD.
+
 The recursive approach is fairly easy to understand and implement. In practice, however, recursive algorithms print long stack
 traces and can be harder to debug, so it is not always desirable. It also reduces possibilities for parallel execution, the
 main focus of this Thesis. Alternatively, recursion can be eliminated in favor of iterative computation with supporting data
 structures. We will explore this more in the following subsection.
 
-\subsection{DFS vs BFS}
-\label{chap:bdd:apply:dfs-bfs}
+\subsection{Iterative Apply}
+\label{chap:bdd:apply:iterative}
 
-- dfs uses a stack
+As the name implies, iterative implementation uses a loop rather than recursion. The concept of rewriting a recursive
+algorithm as an iterative one is well known in Computer Science, so we will not go into exhaustive detail. The key idea to an
+iterative depth-first graph traversal (DFS) is using a last-in, first-out (LIFO) data structure --- such as a stack.
 
-- bfs uses a queue
+The changes done to the $apply$ operation are minimal. During initialization, the first task is pushed into the stack --- the
+node pair to be processed. The algorithm is not done if there are still tasks in the stack, so in each iteration an item is 
+popped from the stack, and we loop until it is empty. A second stack is used to store results.
 
-This is the operation in the focus of this Thesis. The aim of this Thesis is to explore and assess a parallel approach using BFS. For this reason, only one Boolean operation is implemented - conjunction.
+If the task was not processed yet, push it back to the task stack with both of its successors\footnote{The same strategy is
+used here as in Algorithm \ref{alg:apply} (lines \ref{alg:apply:min-var-start} through \ref{alg:apply:min-var-end}).}. If it 
+was processed, the first two items can be popped from the result stack, because those are the new low and high nodes.
+
+However, implementing the same using a Breadth-first search (BFS) is significantly more difficult. The obvious difference is
+using a first-in, first-out (FIFO) data structure --- such as a queue. But keeping the resulting BDD still a ROBDD requires a
+two-phase traversal. First, the graph is traversed from top to bottom, and all tasks are created for later processing. This is
+the \textbf{expansion phase}. Here, the task cache can be replaced by instead ensuring that only unique tasks are created.
+
+The second phase (the \textbf{reduction phase}) traverses the graph from bottom up. The created tasks are processed in
+reverse order to the order in which they were created. This phase is similar to the $apply$ operation we are familiar with.
+In this stage, we must be sure that the node relationships are correctly aligned with the tasks that were rid of duplicities
+in the previous step.
+
+Further details are covered in Chapter \ref{chap:design}. It is clear that BFS introduces new complexity to the operation. At
+the same time, it could benefit from parallel execution, where multiple tasks could be generated and then processed by
+multiple worker threads at the same time. Since the algorithm now traverses the graph twice, it is expected to perform worse
+than DFS implementations, but for certain inputs, this implementation might scale better. Chapter
+\ref{chap:comparisons-benchmarks} covers the findings.

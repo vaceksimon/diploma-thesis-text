@@ -96,7 +96,17 @@
 }
 \usepackage{floatrow} %% Putting captions above tables
 \floatsetup[table]{capposition=top}
+\floatsetup[algorithm]{style=ruled,capposition=top}
+
 \usepackage{algpseudocode}
+\makeatletter %% Gemini generated to correct algorithm line referencing
+\let\old@ALG@step\ALG@step
+\renewcommand{\ALG@step}{%
+  \old@ALG@step
+  \protected@edef\@currentlabel{\theALG@line}%
+}
+\makeatother
+
 \floatstyle{ruled}
 \newfloat{algorithm}{htbp}{loa}
 \floatname{algorithm}{Algorithm}
@@ -167,7 +177,7 @@ Diagram} (OBDD).
 \begin{figure}
     \centering
     \includegraphics[width=0.6\linewidth]{figures/example-bdd.png}
-    \caption{Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$}
+    \caption{Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$.}
     \label{fig:bdd}
 \end{figure}
 
@@ -185,7 +195,7 @@ with $x_3$ was eliminated as the ordering $x_3 \nless x_3$ was violated.
 \begin{figure}
     \centering
     \includegraphics[width=0.6\linewidth]{figures/example-obdd.png}
-    \caption{Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$}
+    \caption{Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$.}
     \label{fig:obdd}
 \end{figure}
 
@@ -212,14 +222,15 @@ $x_n > x_n+1 > \ldots > x_{n+k}$, the ROBDD would be the one displayed in Figure
 \begin{figure}
     \centering
     \includegraphics[width=0.22\linewidth]{figures/example-robdd.png}
-    \caption{Reduced Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$}
+    \caption{Reduced Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$.}
     \label{fig:robdd}
 \end{figure}
 
 \begin{figure}
     \centering
     \includegraphics[width=0.25\linewidth]{figures/example-robdd-reordered.png}
-    \caption{Reduced Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$}
+    \caption{Reduced Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$ with variable
+    ordering reversed to the one of \ref{fig:robdd}.}
     \label{fig:robdd-reordered}
 \end{figure}
 
@@ -231,7 +242,7 @@ ROBDD will be used interchangeably from this point forward.
 
 
 \section{The Apply operation}
-\label{chap:bdd-apply}
+\label{chap:bdd:apply}
 
 A BDD is a convenient representation for satisfiability testing, equivalence checking, and performing Boolean
 operations on them. Applying a Boolean operation (such as AND, OR, XOR) on two BDDs is one of the key operations of
@@ -257,20 +268,57 @@ $h(x_1, x_2, x_3) = x_1 \lor (x_2 \land x_3)$. In terms of BDD, this operation i
     \label{fig:apply}
 \end{figure}
 
-Most commonly, $apply$ is implemented with the use of recursion, which happens to be easier to explain.
+Most commonly, $apply$ is implemented with the use of recursion, which happens to be easier to demonstrate. Algorithm
+\ref{alg:apply} presents the pseudocode of the $apply$ operation. $apply$ returns the root node of the resulting BDD and
+takes three arguments:
+\begin{enumerate}
+    \item A root node of the first BDD
+    \item A root node of the second BDD
+    \item A Boolean operation, e.g. conjunction
+\end{enumerate}
+
+Both BDDs are traversed simultaneously in a depth-first manner from the top to the terminal nodes. Each recursive algorithm
+has a base condition to stop the recursion; in this case, it is when a terminal node of each BDD is reached. On line
+\ref{alg:apply:recursion-stop}, both of the nodes are used as arguments to the $op$ operation, and the result is returned to
+the previous call in the call stack.
+
+If neither or only one of the current nodes is terminal, the task cache is checked on line \ref{alg:apply:cache-get}. This
+check prevents repeated computation of results that were already processed. A task cache is a commonly used optimization that
+reduces the complexity class of many BDD operations from exponential time to polynomial time \cite{sylvan}.
+
+For node pairs that have not been encountered before (or whose result was replaced due to use of a lossy cache), the algorithm
+chooses a path to progress. Line \ref{alg:apply:min-var} determines which BDD to expand further, for only the BDD with a
+lower variable is progressed (assuming the standard variable ordering). After the low and high node pairs of both BDDs are
+assigned, the $apply$ function is called recursively for both successors (lines \ref{alg:apply:apply-l} and
+\ref{alg:apply:apply-h}).
+
+Once both the low and high successors are known, the new resulting node can be created. To keep the resulting BDD still
+reduced, redundant and duplicate nodes need to be eliminated. The $if$ statement on line $\ref{alg:apply:redundancy-check}$
+enforces the redundancy rule. The function $ensure\_node$ called on line \ref{alg:apply:ensure-node} serves two purposes:
+\begin{itemize}
+    \item Create a new node for the given variable $v$, low successor $l$ and high successor $h$
+    \item Check for duplicities and create this node if and only if it is unique to the BDD. Return an existing node otherwise
+\end{itemize}
+
+The final steps of the algorithm are to store the result in the task cache and return the result node. Calling $apply$ with
+two root nodes and an operation yields a root node of the calculated BDD.
 
 \begin{algorithm}
+    \caption{Apply}\label{alg:apply}
     \begin{algorithmic}[1]
-        \caption{Apply}\label{alg:apply}
+        \Require $node\_a$ a root node of BDD $a$
+        \Require $node\_b$ a root node of BDD $b$
+        \Require $op$ a Boolean operation
+        \Ensure $c$ a root node of the resulting BDD
         \Function{apply}{$node\_a, node\_b, op$}
-            \If{$node\_a$ is terminal OR $node\_b$ is terminal}
+            \If{$node\_a$ is terminal AND $node\_b$ is terminal} \label{alg:apply:recursion-stop}
                 \State \Return  $op(node\_a, node\_b)$
             \EndIf
             \State $chached\_res \gets cache.get(node\_a, node\_b, op)$
-            \If{$cached\_res \neq null$}
+            \If{$cached\_res \neq null$} \label{alg:apply:cache-get}
                 \State \Return $cached\_res$
             \EndIf
-            \State $v \gets min(var(node\_a), var(node\_b)$
+            \State $v \gets min(var(node\_a), var(node\_b))$ \label{alg:apply:min-var}
             \If{$var(node\_a) = v$}
                 \State $(low\_a, high\_a) \gets (low(node\_a), high(node\_a))$
             \Else
@@ -281,10 +329,10 @@ Most commonly, $apply$ is implemented with the use of recursion, which happens t
             \Else
                 \State $(low\_b, high\_b) \gets (node\_b, node\_b)$
             \EndIf
-            \State $l \gets apply(low\_a, low\_b)$
-            \State $h \gets apply(high\_a, high\_b)$
-            \If{$l \neq h$}
-                \State $c \gets ensure\_node(v, l, h)$
+            \State $l \gets apply(low\_a, low\_b)$ \label{alg:apply:apply-l}
+            \State $h \gets apply(high\_a, high\_b)$ \label{alg:apply:apply-h}
+            \If{$l \neq h$}A \label{alg:apply:redundancy-check}
+                \State $c \gets ensure\_node(v, l, h)$ \label{alg:apply:ensure-node}
             \Else
                 \State $c \gets l$
             \EndIf
@@ -294,13 +342,17 @@ Most commonly, $apply$ is implemented with the use of recursion, which happens t
     \end{algorithmic}
 \end{algorithm}
 
-apply pseudocode
-Doing so correctly and keeping the rules of a ROBDD while keeping the time complexity and memory consumption low is a
-non-trivial task.
-
-
+The recursive approach is fairly easy to understand and implement. In practice, however, recursive algorithms print long stack
+traces and can be harder to debug, so it is not always desirable. It also reduces possibilities for parallel execution, the
+main focus of this Thesis. Alternatively, recursion can be eliminated in favor of iterative computation with supporting data
+structures. We will explore this more in the following subsection.
 
 \subsection{DFS vs BFS}
+\label{chap:bdd:apply:dfs-bfs}
+
+- dfs uses a stack
+
+- bfs uses a queue
 
 This is the operation in the focus of this Thesis. The aim of this Thesis is to explore and assess a parallel approach using BFS. For this reason, only one Boolean operation is implemented - conjunction.
 

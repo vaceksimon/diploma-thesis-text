@@ -33,6 +33,13 @@ Function $f$ performs AND and OR on a vector of variables $X=(x_1, x_2, x_3)$. A
 function is portrayed in Figure \ref{fig:bdd}. In this case, the root node contains $x_2$. This particular BDD has
 three interesting properties:
 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.6\linewidth]{figures/example-bdd.pdf}
+    \caption{Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$.}
+    \label{fig:bdd}
+\end{figure}
+
 \begin{enumerate}
     \item Following only the high links from the root node, we will encounter an $x_3$ node with both of its
         links directed to the terminal node $1$. Similarly, the low link of $x_2$ also has both links directed to the
@@ -44,18 +51,23 @@ three interesting properties:
 \end{enumerate}
 
 While the BDD is correct, the graph is hard to read. Furthermore, these properties create implementation challenges
-and increase both time and space complexity for the operations performed on this data structure. The point
-\ref{item:ordering} outlines variables scattered in a seemingly random order. This makes the layer-by-layer
-Breadth-first processing more challenging. To address this, let's consider an \textit{Ordered Binary Decision
-Diagram} (OBDD).
+and increase both time and space complexity for the operations performed on this data structure. To address these three
+issues let's introduce some restrictions to a BDD.
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.6\linewidth]{figures/example-bdd.pdf}
-    \caption{Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$.}
-    \label{fig:bdd}
-\end{figure}
 
+\section{Types of BDDs}
+\label{chap:bdd:types}
+
+The above mentioned points lay out a foundation for this section. An \textit{Ordered BDD} in subsection
+\ref{chap:bdd:types:obdd} is a solution to point \ref{item:ordering}. Points \ref{item:duplicate} and \ref{item:redundancy}
+are addressed by a \textit{Reduced Ordered BDD} described in subsection \ref{chap:bdd:types:robdd}.
+
+
+\subsection{Ordered BDD}
+\label{chap:bdd:types:obdd}
+
+The point \ref{item:ordering} outlines variables scattered in a seemingly random order. This makes the layer-by-layer
+Breadth-first processing more challenging.
 An OBDD enforces a fixed variable ordering restriction. Let's assume a total ordering of variables
 $x_n < x_n+1 < \ldots < x_{n+k}$ where the variable of terminal nodes in this ordering is assumed to be $\infty$,
 so that $\infty > x_{n+k}$ \cite{ruddy}. A fixed variable ordering guarantees that traversing the BDD encounters the
@@ -73,6 +85,10 @@ with $x_3$ was eliminated as the ordering $x_3 \nless x_3$ was violated.
     \caption{Ordered Binary Decision Diagram representing Boolean function $(x_1 \land x_2) \lor x_3$.}
     \label{fig:obdd}
 \end{figure}
+
+
+\subsection{Reduced Ordered BDD}
+\label{chap:bdd:types:robdd}
 
 As per points \ref{item:redundancy} and \ref{item:duplicate}, these are eliminated with further restrictions applied
 to an OBDD. A \textit{Reduced Ordered Binary Decision Diagram} (ROBDD) is defined by the following rules:

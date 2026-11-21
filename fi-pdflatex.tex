@@ -110,7 +110,9 @@
 \floatstyle{ruled}
 \newfloat{algorithm}{htbp}{loa}
 \floatname{algorithm}{Algorithm}
+\usepackage{minted}
 \usepackage[babel]{csquotes} %% Context-sensitive quotation marks
+
 \begin{document}
 %% The \chapter* command can be used to produce unnumbered chapters:
 \chapter*{Introduction}
@@ -134,7 +136,6 @@ BDDs are pretty cool, but heavy on the computation, here are top 3 reasons why: 
 
 \chapter{Conclusion}
 
-\nocite{*} %% TODO DELETEME
 \printbibliography[heading=bibintoc] %% Print the bibliography.
 
 

@@ -1,4 +1,122 @@
 \chapter{Approaches to BDD parallelization}
-\label{chap:approaches-bdd-parallelization}
+\label{chap:other-impls}
 
-All found concurrent implementations of BDD implement a recursive approach to depth-first traversal \cite{oxidd, sylvan}. 
+In this chapter, we will go over existing BDD libraries that use parallel execution of the \texttt{apply} operation. We will
+explore their design and implementation and assess their strengths and weaknesses. The most prominent BDD libraries
+are in Table \ref{tab:bdd-libraries}. All of these libraries are written in low-level programming languages —--
+either C or Rust. Only the last two of all the listed libraries implement parallelism: OxiDD and Sylvan. An overview
+of both these libraries is presented in the following sections.
+
+\begin{table}[htbp]
+  \begin{tabularx}{\textwidth}{llX}
+    \toprule
+    Library & Language & Parallel? \\
+    \midrule
+    CUDD              & C    & No  \\
+    BuDDy             & C    & No  \\
+    biodivine-lib-bdd & Rust & No  \\
+    Ruddy             & Rust & No  \\
+    OxiDD             & Rust & Yes \\
+    Sylvan            & C    & Yes \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Popular BDD libraries}
+  \label{tab:bdd-libraries}
+\end{table}
+
+
+\section{OxiDD}
+\label{chap:other-impls:oxidd}
+
+OxiDD presents itself as a Decision Diagram framework rather than a library. It focuses on safety, concurrency, and
+modularity, and provides powerful abstractions to support its extensibility \cite{oxidd}. The modular architecture
+means that the implementation is split into multiple crates\footnote{Crates are the fundamental compilation unit of
+Rust code, and can be seen as libraries or projects \cite[keyword.crate]{rust-docs}.}
+within the same project. Each crate exposes part of the public API that can be reimplemented to, for example, support
+another BDD type - such as MTBDD. In practice, this means you don't add OxiDD as a whole dependency, but rather the
+individual OxiDD crates (or their reimplementations).
+
+The most crucial component is the \texttt{core} crate, which consists mainly of trait\footnote{A trait is like an
+interface that data types can implement. When a type implements a trait, it can be treated abstractly as that trait
+using generics or trait objects \cite[keyword.trait]{rust-docs}.} definitions that formalize the key concepts of DDs
+\cite{oxidd}. To use OxiDD as a full-fledged library with a default implementation, use the \texttt{oxidd} crate.
+
+The most significant data structure of the framework is the \texttt{Manager} implemented in the
+\texttt{manager-index} and \texttt{manager-pointer} crates. It stores all nodes of a DD and ensures their uniqueness
+via a unique table \cite{oxidd}. The difference between these two crates is that \texttt{manager-index} uses 32-bit
+unsigned integers to represent edges. The latter offers more flexibility if 32 bits are not enough and nodes are
+referenced by pointers. Listing \ref{lst:manager-struct} defines the \texttt{Manager} structure, whose key fields are
+examined below.
+
+
+\begin{listing}[htbp]
+    \caption{Definition of the \texttt{Manager} struct in the \texttt{manager-index} crate.}
+    \label{lst:manager-struct}
+    \begin{minted}{rust}
+    #[repr(C)]
+    pub struct Manager<'id, DI: DiagramInfo> {
+        unique_table: Vec<Mutex<LevelViewSet<'id, DI>>>,
+        var_level_map: VarLevelMap,
+        var_name_map: VarNameMap,
+        data: ManuallyDrop<DI::ManagerData<'id>>,
+        store: *const Store<'id, DI>,
+        gc_count: AtomicU64,
+        reorder_count: u64,
+        gc_ongoing: TryLock,
+        reorder_gc_prepared: bool,
+    }
+    \end{minted}
+\end{listing}
+
+The \texttt{unique\_table} is composed of several layers of abstraction (aligned with the idea to separate algorithms
+from data structures), but essentially boils down to the type \texttt{Vec<Mutex<RawTable>>}. Each item in the vector
+represents a level of the BDD. Note that the level does not necessarily refer to a specific variable. OxiDD supports
+variable reordering by swapping levels in DDs\footnote{Currently, the \texttt{reorder} crate implements functionality
+to establish a given variable order, e.g., harmonize variable orders of different DDs or impose a static variable
+order heuristic \cite{oxidd}.}. To maintain synchronization between levels and actual variables, \texttt{Manager}
+holds a \texttt{var\_level\_map}. The \texttt{RawTable} is a custom-implemented OxiDD hash table. However, it does not
+hold the nodes directly; rather, it holds node IDs --- references to the node store.
+
+The node store contains all nodes of a BDD. Without delving into much detail, the node representation consists of
+references to the low and high successors, the level, and a reference counter. To avoid out-of-memory errors, OxiDD
+implements garbage collection. The reference counter is used for this exact reason --- only unreferenced nodes are
+marked for removal. Garbage collection is an exhaustive operation, so it is delayed as long as possible. It is
+executed only if all free space in the node store is depleted, during variable reordering, or manually.
+
+It is important to mention that OxiDD utilizes a \textit{shared representation}. When a single BDD represents
+multiple Boolean functions via multiple root handles, it is a shared representation. In a \textit{split
+representation}, each function has a separate OBDD, and each graph has a single root \cite{bdds, bfs-bdd, bdds-older}.
+
+Finally, the \texttt{apply} operation. OxiDD uses recursion with a task-based work-stealing architecture. Up to a
+certain recursion threshold, tasks are split among the worker threads. After the limit is reached, a single-threaded
+algorithm is used \cite{oxidd} --- note that the process remains recursive, but no task splitting for threads is
+performed. Because BDDs are rarely balanced, when a thread finishes its shallow subgraph and should become idle, it
+tries to steal work from another thread and execute \texttt{apply} on a new subgraph. For this, the \texttt{rayon}
+crate is used.
+
+During the execution of the operation, all threads regularly require exclusive access to the same data structures.
+These are:
+
+\begin{itemize}
+    \item node store
+    \item unique table
+    \item apply cache
+\end{itemize}
+
+To avoid a synchronization bottleneck in the node store, OxiDD maintains it in a shared state across all threads.
+Before the operation begins, each thread is given a local portion of the store. Only after the thread fully fills it
+is this local store moved to the shared state and receives a new empty slot. The unique table that holds the node IDs
+for the node store has a Mutex per BDD level. Lock-free hash tables with atomic operations enable multiple threads to
+read and write simultaneously. In this case, the Mutex is used to lock the whole level to grow the table on demand.
+This blocking exclusive access is identified as a potential bottleneck for the operation \cite{oxidd}.
+
+The apply cache is the most frequently used data structure during calculation. In the OxiDD implementation, it is a
+fixed-size hash table. Table synchronization is performed via a spinlock\footnote{A spinlock is a synchronization
+primitive used in concurrent programming. When a thread attempts to acquire a spinlock that is already held by
+another thread, it repeatedly executes a loop ("spins") checking if the lock has become available, rather than
+yielding control to the operating system scheduler. It is a form of "busy waiting".}. When the lock is held by
+another thread, waiting to obtain the lock is too costly, so the result is recomputed instead.
+
+
+\section{Sylvan}
+\label{chap:other-impls:sylvan}

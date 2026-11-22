@@ -1,11 +1,11 @@
 \chapter{Approaches to BDD parallelization}
 \label{chap:other-impls}
 
-In this chapter, we will go over existing BDD libraries that use parallel execution of the \texttt{apply} operation. We will
-explore their design and implementation and assess their strengths and weaknesses. The most prominent BDD libraries
-are in Table \ref{tab:bdd-libraries}. All of these libraries are written in low-level programming languages —--
-either C or Rust. Only the last two of all the listed libraries implement parallelism: OxiDD and Sylvan. An overview
-of both these libraries is presented in the following sections.
+In this chapter, we will go over existing BDD libraries that use parallel execution of the \texttt{apply} operation.
+We will explore their design and implementation and assess their strengths and weaknesses. The most prominent BDD
+libraries are in Table \ref{tab:bdd-libraries}. All of these libraries are written in low-level programming languages
+—-- either C or Rust. Only the last two of all the listed libraries implement parallelism: OxiDD and Sylvan. An
+overview of both these libraries is presented in the following sections.
 
 \begin{table}[htbp]
   \begin{tabularx}{\textwidth}{llX}
@@ -92,7 +92,7 @@ certain recursion threshold, tasks are split among the worker threads. After the
 algorithm is used \cite{oxidd} --- note that the process remains recursive, but no task splitting for threads is
 performed. Because BDDs are rarely balanced, when a thread finishes its shallow subgraph and should become idle, it
 tries to steal work from another thread and execute \texttt{apply} on a new subgraph. For this, the \texttt{rayon}
-crate is used.
+crate\footnote{\url{https://crates.io/crates/rayon}} is used.
 
 During the execution of the operation, all threads regularly require exclusive access to the same data structures.
 These are:
@@ -107,16 +107,41 @@ To avoid a synchronization bottleneck in the node store, OxiDD maintains it in a
 Before the operation begins, each thread is given a local portion of the store. Only after the thread fully fills it
 is this local store moved to the shared state and receives a new empty slot. The unique table that holds the node IDs
 for the node store has a Mutex per BDD level. Lock-free hash tables with atomic operations enable multiple threads to
-read and write simultaneously. In this case, the Mutex is used to lock the whole level to grow the table on demand.
+read and write simultaneously. In this case, the Mutex is used to lock the entire level while the table is grown on demand.
 This blocking exclusive access is identified as a potential bottleneck for the operation \cite{oxidd}.
 
 The apply cache is the most frequently used data structure during calculation. In the OxiDD implementation, it is a
-fixed-size hash table. Table synchronization is performed via a spinlock\footnote{A spinlock is a synchronization
-primitive used in concurrent programming. When a thread attempts to acquire a spinlock that is already held by
-another thread, it repeatedly executes a loop ("spins") checking if the lock has become available, rather than
-yielding control to the operating system scheduler. It is a form of "busy waiting".}. When the lock is held by
-another thread, waiting to obtain the lock is too costly, so the result is recomputed instead.
+fixed-size hash table. Table synchronization is performed via a spinlock\footnote{A spinlock is a mutex lock where a
+waiting thread loops continuously ("spins") checking for availability rather than yielding control to the CPU scheduler,
+avoiding the overhead of a context switch when locks are held for short durations \cite{os-concepts}.}. When the lock is
+held by another thread, waiting to obtain the lock is too costly, so the result is recomputed instead.
 
 
 \section{Sylvan}
 \label{chap:other-impls:sylvan}
+
+The Sylvan library is a high-performance C library for BDD manipulation. Its architecture is very similar to OxiDD's
+(although Sylvan predates it). For this reason, we will focus in this subsection on the differences between these two
+libraries. Sylvan also utilizes a work-stealing parallel framework, C-written \texttt{Lace}
+\footnote{\url{https://trolando.github.io/lace}} based around a concurrent task dequeue which minimizes interactions between
+workers and with the shared memory \cite{sylvan, sylvan-thesis}. The \texttt{apply} operation is also executed recursively
+in parallel, but because task creation overhead is negligible, Sylvan does not need an explicit recursion-depth cutoff as
+OxiDD does.
+
+Unlike OxiDD, which uses two data structures for node handling—the unique table and node store --- Sylvan uses a single
+unique node hash table. This hash table is a custom-implemented lock-free structure that is internally split into a hash array
+and a data array (in contrast to OxiDD's leveled Mutex-protected data structure). The idea is that the location of the
+decision diagram node in the data array is used for the node identifier and that nodes can be reinserted into the hash array
+without changing the node identifier. This is important, since garbage collection is performed often and node identifiers
+should remain unchanged during garbage collection, i.e., nodes should not be moved \cite{sylvan}.
+
+Garbage collection in Sylvan is performed concurrently. A "walk the line" strategy \cite[subsec. 4.2.1]{sylvan-thesis} is used
+to deal with hash collisions. When the currently running algorithm is unable to locate a free bucket within the first K buckets,
+typically at 80-95\% hash table occupancy, garbage collection is triggered \cite{sylvan}. When this happens, Sylvan sends a
+"stop-the-world" interruption. The operation cache and the hash array are cleared, and all workers begin marking all live nodes
+(those referenced by other nodes) while keeping track of their sum. The dead nodes are removed, the size of the hash table and
+the operation cache is optionally increased, and the marked nodes are rehashed. This approach is called "mark-and-sweep".
+
+Despite these implementation differences, both libraries rely on the same parallel, work-stealing model across BDDs, MTBDDs,
+and ZDDs --- with Sylvan additionally supporting List Decision Diagrams (LDDs) for encoding integer vectors in symbolic model
+checking.

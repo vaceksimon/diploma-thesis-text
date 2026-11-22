@@ -207,7 +207,7 @@ optimization that reduces the complexity class of many BDD operations from expon
             \EndIf \label{alg:apply:min-var-end}
             \State $l \gets apply(low\_a, low\_b)$ \label{alg:apply:apply-l}
             \State $h \gets apply(high\_a, high\_b)$ \label{alg:apply:apply-h}
-            \If{$l \neq h$}A \label{alg:apply:redundancy-check}
+            \If{$l \neq h$} \label{alg:apply:redundancy-check}
                 \State $c \gets ensure\_node(v, l, h)$ \label{alg:apply:ensure-node}
             \Else
                 \State $c \gets l$

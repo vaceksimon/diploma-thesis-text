@@ -9,7 +9,7 @@ bookTitle="Handbook of Model Checking",
 year="2018",
 publisher="Springer International Publishing",
 address="Cham",
-pages="191--217",
+chapter = "7: Binary Decision Diagrams",
 abstract="Binary decision diagrams provide a data structure for representing and manipulating Boolean functions in symbolic form. They have been especially effective as the algorithmic basis for symbolic model checkers. A binary decision diagram represents a Boolean function as a directed acyclic graph, corresponding to a compressed form of decision tree. Most commonly, an ordering constraint is imposed among the occurrences of decision variables in the graph, yielding ordered binary decision diagrams (OBDD). Representing all functions as OBDDs with a common variable ordering has the advantages that (1) there is a unique, reduced representation of any function, (2) there is a simple algorithm to reduce any OBDD to the unique form for that function, and (3) there is an associated set of algorithms to implement a wide variety of operations on Boolean functions represented as OBDDs. Recent work in this area has focused on generalizations to represent larger classes of functions, as well as on scaling implementations to handle larger and more complex problems.",
 isbn="978-3-319-10575-8",
 doi="10.1007/978-3-319-10575-8_7",
@@ -58,7 +58,7 @@ isbn="978-3-031-57256-2"
 }
 
 @Article{sylvan,
-author={van Dijk, Tom
+author={{van Dijk}, Tom
 and van de Pol, Jaco},
 title={Sylvan: multi-core framework for decision diagrams},
 journal={International Journal on Software Tools for Technology Transfer},
@@ -72,6 +72,24 @@ abstract={Decision diagrams, such as binary decision diagrams, multi-terminal bi
 issn={1433-2787},
 doi={10.1007/s10009-016-0433-2},
 url={https://doi.org/10.1007/s10009-016-0433-2}
+}
+
+@phdthesis{sylvan-thesis,
+title = "Sylvan: multi-core decision diagrams",
+abstract = "This thesis studies the parallelization of decision diagrams, a fundamental data-structure with applications in many fields, in particular symbolic model checking. Research into parallel processing is essential, as multi-core and many-core computers are ubiquitous. Graph algorithms such as decision diagram operations are known to be difficult to parallelize, as well as difficult to reason about. This is one of the reasons why parallelizing symbolic model checking is difficult. The main result of this research is the multi-core decision diagram package Sylvan. We investigate scalable hash tables, load balancing via work stealing, using Sylvan for symbolic state space exploration and for symbolic bisimulation minimization. The experimental results show high parallel speedup of up to 38x for benchmarks on a 48-core computer. Experiments that compare Sylvan to non-parallel decision diagram packages show that Sylvan is competitive when run with a single core, and faster when run with multiple cores.",
+author = "{van Dijk}, Tom",
+year = "2016",
+month = jul,
+day = "13",
+doi = "10.3990/1.9789036541602",
+language = "English",
+isbn = "978-90-365-4160-2",
+series = "CTIT Ph.D. thesis series",
+publisher = "University of Twente",
+number = "16-398",
+address = "Netherlands",
+type = "PhD Thesis - Research UT, graduation UT",
+school = "University of Twente",
 }
 
 @MastersThesis{ruddy,
@@ -90,4 +108,16 @@ URL = "https://is.muni.cz/th/danz1/",
   url     = {https://doc.rust-lang.org/std/},
   year    = {2026},
   urldate = {2026-11-19}
+}
+
+@inbook{os-concepts,
+  author    = {Silberschatz, Abraham and Galvin, Peter Baer and Gagne, Greg},
+  title     = {Operating System Concepts},
+  chapter   = {6: Synchronization Tools},
+  edition   = {10th},
+  publisher = {John Wiley \& Sons},
+  address   = {Hoboken, NJ},
+  year      = {2018},
+  isbn      = {978-1-119-32091-3},
+  url       = {https://books.google.cz/books?id=FHJlDwAAQBAJ}
 }

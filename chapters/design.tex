@@ -1,6 +1,85 @@
 \chapter{Design}
 \label{chap:design}
 
-General overview was covered in \ref{chap:bdd:apply:iterative}
+In the previous chapter, we covered two BDD libraries that utilize parallelism in the \texttt{apply} operation (described in detail in Section \ref{chap:bdd:apply}). We focused mainly on the OxiDD framework. This is mainly due
+to its implementation in the Rust programming language, its inspiration from Sylvan, and how relatively new it is. In
+this chapter, we will go through the design of a BDD library that uses breadth-first-search parallelism. However, the
+scope of this library is focused on \texttt{apply} and its scalability. Therefore, the product should not be a
+full-fledged user-facing library, but should satisfy the following requirements:
 
-We will focus on implementing a Shared Binary Decision Diagram, a multi-rooted directed acyclic graph that represents multiple Boolean functions \cite{bfs-bdd}.
+\begin{itemize}
+    \item The \texttt{apply} operation distributes the work among multiple worker threads in a breadth-first-search
+        manner.
+    \item The implementation is thoroughly tested to guarantee its correctness.
+    \item The resulting library is benchmarked on BDDs of diverse sizes and across various thread counts (including
+        single-threaded) to assess the usefulness and scalability of the BFS approach.
+\end{itemize}
+
+The features commonly implemented in other BDD libraries, and specifically out of scope, include evaluating the BDD
+for a given valuation of variables, providing a user API to create variables and new functions, and checking for
+satisfiability. The design discussed in this chapter should be seen as a foundation that can be used in the future
+either as a learning resource or as a baseline for further optimizations.
+
+
+\section{Historical context}
+\label{chap:design:history}
+Several times in this text, a paper \cite{bfs-bdd} by Ochi, H., Yasuoka, K., and Yajima, S. was cited. The name would
+suggest it could provide a solid foundation for this work. However, it was published in 1993, so the problem it
+solved was memory capacity. Large BDDs had difficulty fitting in main memory (commonly referred to as RAM). The paper
+specifically mentions the Sun SPARCstation 10 workstation, which had 64 MB of RAM. The researchers proposed a 1 GB
+virtual space that combined RAM with secondary storage on a 1 GB hard disk drive. Their solution lies in organizing
+all nodes and hash tables strictly by variable level in contiguous blocks on disk. The nodes in the same level are
+loaded from disk to main memory, processed, and written back to disk \cite{bfs-bdd}.
+
+In today's age, even low-end personal laptops have at least 4 GB of RAM, let alone professional workstations used for
+BDD computations, which are equipped with hundreds of GB of main memory. Although memory consumption concerns are not
+frequently addressed at this time, the principles of breadth-first execution have not changed.
+
+
+\section{General ideas}
+\label{chap:design:general}
+
+The very first design decision was to choose the type of BDD representation --- split or shared\footnote{The
+definition is covered in Section \ref{chap:other-impls:oxidd}.}. Since memory optimizations are taken into
+consideration, but not the main focus of the work, the shared representation is the more reasonable choice for its
+memory savings, and its implementation is relatively easy.
+
+The cornerstone of all data structures is the representation of BDD primitives, such as a Node. Listing
+\ref{lst:key-definitions} depicts structures \texttt{NodeId}, \texttt{Variable}, and \texttt{Node}. For simplicity's
+sake, the visibility modifiers and attribute macros are omitted. This representation is inspired by the LibBDD
+\footnote{\url{https://github.com/sybila/biodivine-lib-bdd}} library.
+
+\begin{listing}[htbp]
+    \caption{Definitions of the key types --- \texttt{NodeId}, \texttt{Variable}, and \texttt{Node}.}
+    \label{lst:key-definitions}
+    \begin{minted}{rust}
+    struct NodeId(Uuid);
+    struct Variable(u32);
+    struct Node {
+        variable: Variable,
+        low_child: NodeId,
+        high_child: NodeId,
+    }
+    \end{minted}
+\end{listing}
+
+Each node has an assigned variable and references to its successors (hereafter referred to as children). Rather than
+direct references, these identifiers act as keys into the library's node hash map. You may notice that
+\texttt{NodeId} and \texttt{Variable} use the \texttt{struct} keyword instead of \texttt{type}. This pattern,
+called Newtype, is useful because the new type can expose a public API that is different from the API of the
+private inner type \cite[ch. 20]{rust-book}.
+
+- representation of the BDD
+
+- BFS - we need a queue and hashtable, justify using crossbeam-queue and DashMap
+
+- General overview was covered in \ref{chap:bdd:apply:iterative}
+
+- for apply, just a single operation is needed - logical and. Other operations should be farely trivial to implement
+
+- The termination detection for generating tasks
+
+- Identifying tasks after deduplication
+
+- ensure node - two maps that are basically identical, but key,value are swapped
+
